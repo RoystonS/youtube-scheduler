@@ -29,11 +29,9 @@ ENV/
 credentials.json
 oauth_credentials.json
 token.pickle
-*.json
 !config.example.json
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
