@@ -1,0 +1,25 @@
+{# Partial template for rendering a single broadcast row #}
+<tr class="{{ 'live' if broadcast.is_live else ('past' if broadcast.is_past else 'upcoming') }}">
+    <td>
+        {{ broadcast.display_datestring }}
+        {% if broadcast.is_live %}
+        <div class="live-badge">🔴 LIVE NOW</div>
+        {% endif %}
+    </td>
+    <td>{{ broadcast.title }}</td>
+    <td>
+        <a href="{{ broadcast.broadcast_id | youtube_watch_url }}" target="_blank" class="broadcast-link">
+            {{ broadcast.broadcast_id | youtube_watch_url }}
+        </a>
+        {% if broadcast.is_live %}
+        <div class="video-embed">
+            <iframe 
+                src="{{ broadcast.broadcast_id | youtube_embed_url }}" 
+                frameborder="0" 
+                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowfullscreen>
+            </iframe>
+        </div>
+        {% endif %}
+    </td>
+</tr>

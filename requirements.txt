@@ -1,0 +1,10 @@
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+google-auth-httplib2==0.2.0
+google-auth-stubs>=0.3.0
+google-api-python-client>=2.176.0
+google-api-python-client-stubs>=1.30.0
+flask==3.0.0
+python-dateutil==2.9.0
+pytz==2025.2
+json-with-comments>=1.2.0
