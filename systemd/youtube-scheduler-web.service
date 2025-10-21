@@ -1,0 +1,43 @@
+[Unit]
+Description=YouTube Scheduler Web Interface Service
+Documentation=https://github.com/RoystonS/youtube-scheduler
+Requires=youtube-scheduler-web.socket
+After=youtube-scheduler-web.socket
+
+[Service]
+Type=notify
+# Change this to your actual installation path
+WorkingDirectory={{INSTALL_DIR}}
+Environment="PATH={{INSTALL_DIR}}/.venv/bin:/usr/bin:/bin"
+
+# Use gunicorn with systemd socket activation
+ExecStart={{INSTALL_DIR}}/.venv/bin/gunicorn \
+    --bind unix:systemd \
+    --workers 1 \
+    --threads 4 \
+    --timeout 60 \
+    webserver:app
+
+# Automatically restart on failure
+Restart=on-failure
+RestartSec=5s
+
+# Idle timeout: Stop service after 5 minutes of inactivity
+# This is the key setting for on-demand behavior
+RuntimeMaxSec=300
+
+# Security hardening (optional but recommended)
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Change to your user
+User={{USER}}
+Group={{GROUP}}
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=youtube-scheduler-web
+
+[Install]
+WantedBy=multi-user.target

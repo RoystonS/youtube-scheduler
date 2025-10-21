@@ -1,0 +1,16 @@
+[Unit]
+Description=YouTube Scheduler Web Interface Socket
+Documentation=https://github.com/RoystonS/youtube-scheduler
+
+[Socket]
+# Listen on port {{PORT}} (change as needed)
+ListenStream={{PORT}}
+
+# Accept connections from localhost only (remove for network access)
+# ListenStream=127.0.0.1:{{PORT}}
+
+# Accept connections from anywhere (use this for network access)
+# ListenStream=0.0.0.0:{{PORT}}
+
+[Install]
+WantedBy=sockets.target

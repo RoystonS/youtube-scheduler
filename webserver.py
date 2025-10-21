@@ -153,7 +153,7 @@ def index() -> str | tuple[str, int]:
         page_title = config['web_server']['page_title']
         
         return render_template(
-            'index.html',
+            template_name_or_list='index.html',
             streamable_broadcasts=streamable_list,
             historical_broadcasts=historical_list,
             current_time=current_time,
@@ -191,12 +191,17 @@ def run_server() -> None:
         config = load_config()
         server_config = config['web_server']
         
+        # Use PORT env variable for Cloud Run, fallback to config
+        import os
+        port = int(os.environ.get('PORT', server_config['port']))
+        host = os.environ.get('HOST', server_config['host'])
+        
         logger.info("Starting web server...")
-        logger.info(f"Access at: http://localhost:{server_config['port']}/")
+        logger.info(f"Access at: http://{host}:{port}/")
         
         app.run(
-            host=server_config['host'],
-            port=server_config['port'],
+            host=host,
+            port=port,
             debug=True  # Enable debug mode for better error messages
         )
     except Exception as e:
