@@ -1,0 +1,29 @@
+[Unit]
+Description=YouTube Scheduler - Maintain Broadcast Buffer
+Documentation=https://github.com/RoystonS/youtube-scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory={{INSTALL_DIR}}
+Environment="PATH={{INSTALL_DIR}}/.venv/bin:/usr/bin:/bin"
+
+# Run the scheduler script
+ExecStart={{INSTALL_DIR}}/.venv/bin/python {{INSTALL_DIR}}/scheduler.py
+
+# User and group
+User={{USER}}
+Group={{GROUP}}
+
+# Security hardening (optional but recommended)
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=youtube-scheduler
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,7 @@
 #!/bin/bash
-# Install systemd socket-activated service for YouTube Scheduler Web Interface
+# Install systemd services for YouTube Scheduler
+# - Socket-activated web interface
+# - Timer-based scheduler (optional)
 set -e
 
 # Determine installation directory (parent of systemd directory)
@@ -63,7 +65,7 @@ sed -e "s|{{INSTALL_DIR}}|$INSTALL_DIR|g" \
 
 # Check if gunicorn is installed
 if [ -d "$INSTALL_DIR/.venv" ]; then
-    if ! $INSTALL_DIR/.venv/bin/pip list | grep -q gunicorn; then
+    if ! $INSTALL_DIR/.venv/bin/pip show gunicorn &> /dev/null; then
         echo "⚠️  Warning: gunicorn not found. Installing..."
         $INSTALL_DIR/.venv/bin/pip install gunicorn
     fi
@@ -98,6 +100,61 @@ echo ""
 echo "Commands:"
 echo "  View logs:        journalctl -u youtube-scheduler-web -f"
 echo "  Stop socket:      sudo systemctl stop youtube-scheduler-web.socket"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+read -p "📅 Do you want to install the scheduler timer (runs twice daily)? [y/N] " -n 1 -r
+echo ""
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "📅 Installing scheduler timer..."
+    
+    # Create temporary files with substituted values
+    TEMP_TIMER=$(mktemp)
+    TEMP_SCHEDULER_SERVICE=$(mktemp)
+    
+    # Timer file doesn't need substitution
+    cp "$SCRIPT_DIR/youtube-scheduler.timer" "$TEMP_TIMER"
+    
+    # Process scheduler service file - replace placeholders
+    sed -e "s|{{INSTALL_DIR}}|$INSTALL_DIR|g" \
+        -e "s|{{USER}}|$USER|g" \
+        -e "s|{{GROUP}}|$GROUP|g" \
+        "$SCRIPT_DIR/youtube-scheduler.service" > "$TEMP_SCHEDULER_SERVICE"
+    
+    # Copy processed files to systemd
+    sudo cp "$TEMP_TIMER" /etc/systemd/system/youtube-scheduler.timer
+    sudo cp "$TEMP_SCHEDULER_SERVICE" /etc/systemd/system/youtube-scheduler.service
+    
+    # Clean up temporary files
+    rm "$TEMP_TIMER" "$TEMP_SCHEDULER_SERVICE"
+    
+    # Reload systemd
+    sudo systemctl daemon-reload
+    
+    # Enable and start timer
+    sudo systemctl enable youtube-scheduler.timer
+    sudo systemctl start youtube-scheduler.timer
+    
+    echo ""
+    echo "✅ Timer installed!"
+    echo ""
+    echo "📊 Timer status:"
+    sudo systemctl status youtube-scheduler.timer --no-pager
+    echo ""
+    echo "📅 Next scheduled runs:"
+    systemctl list-timers youtube-scheduler.timer --no-pager
+    echo ""
+    echo "Commands:"
+    echo "  View timer logs:  journalctl -u youtube-scheduler -f"
+    echo "  List timers:      systemctl list-timers"
+    echo "  Stop timer:       sudo systemctl stop youtube-scheduler.timer"
+    echo "  Disable timer:    sudo systemctl disable youtube-scheduler.timer"
+    echo "  Run now:          sudo systemctl start youtube-scheduler.service"
+else
+    echo "⏭️  Skipping timer installation."
+    echo ""
+    echo "To install later, run: $SCRIPT_DIR/install.sh"
+fi
 echo "  Restart socket:   sudo systemctl restart youtube-scheduler-web.socket"
 echo "  Service status:   sudo systemctl status youtube-scheduler-web.service"
 echo ""

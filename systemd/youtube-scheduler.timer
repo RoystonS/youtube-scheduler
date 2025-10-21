@@ -1,0 +1,18 @@
+[Unit]
+Description=YouTube Scheduler Timer - Run twice daily
+Documentation=https://github.com/RoystonS/youtube-scheduler
+
+[Timer]
+# Run at 3:00 AM and 1:30 PM every day (local time)
+OnCalendar=*-*-* 03:00:00
+OnCalendar=*-*-* 13:30:00
+
+# If the system was off when a run was scheduled, run it soon after boot
+Persistent=true
+
+# Add a small random delay (0-5 minutes) to avoid exact scheduling
+# Useful if you have multiple similar timers
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target
