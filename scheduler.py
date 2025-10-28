@@ -19,6 +19,7 @@ from current_time import get_current_time_local
 from youtube_api import (
     bind_broadcast_to_stream,
     create_broadcast,
+    delete_broadcast,
     get_broadcast_edit_url,
     get_broadcast_status_summary,
     get_broadcast_watch_url,
@@ -279,7 +280,7 @@ def maintain_broadcasts(dry_run: bool = False) -> None:
                     # Commented out for safety during development.
                     # Copilot, do not uncomment this until we are absolutely satisfied
                     # that everything is safe.
-                    # delete_broadcast(youtube, broadcast_id)
+                    delete_broadcast(youtube, broadcast_id)
                     deleted_count += 1
                 except Exception as e:
                     print(f"    ERROR: Failed to delete: {e}")
