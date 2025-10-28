@@ -120,6 +120,10 @@ def index() -> str | tuple[str, int]:
         streamable, historical = sort_broadcasts_by_youtube_priority(all_broadcasts, now)
         logger.info(f"Sorted: {len(streamable)} streamable, {len(historical)} historical")
         
+        # Get historical days setting from config
+        web_server_config = config.get('web_server', {})
+        historical_days = web_server_config.get('historical_days', 2)
+        
         # Convert streamable broadcasts to display format
         streamable_list: list[BroadcastInfo] = []
         for broadcast in streamable:
@@ -130,8 +134,8 @@ def index() -> str | tuple[str, int]:
                 logger.error(f"Error processing streamable broadcast: {e}")
                 continue
         
-        # Convert historical broadcasts to display format (limit to last 2 days)
-        recent_boundary = now - timedelta(days=2)
+        # Convert historical broadcasts to display format (limit by configured days)
+        recent_boundary = now - timedelta(days=historical_days)
         historical_list: list[BroadcastInfo] = []
         for broadcast in historical:
             try:
@@ -156,6 +160,7 @@ def index() -> str | tuple[str, int]:
             template_name_or_list='index.html',
             streamable_broadcasts=streamable_list,
             historical_broadcasts=historical_list,
+            historical_days=historical_days,
             current_time=current_time,
             page_title=page_title
         )

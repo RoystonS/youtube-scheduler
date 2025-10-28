@@ -36,7 +36,9 @@
     </div>
     {% endif %}
     
-    <h2 style="margin-top: 40px;">Recent completed broadcasts</h2>    
+    <h2 style="margin-top: 40px">
+      Completed broadcasts from the last {{ historical_days }} days
+</h2>    
     <table>
         <thead>
             <tr>
@@ -46,15 +48,17 @@
             </tr>
         </thead>
         <tbody>
-            {% for broadcast in historical_broadcasts %}
-                {% include '_broadcast_row.html' %}
-            {% endfor %}
+            {% for broadcast in historical_broadcasts %} {% include
+'_broadcast_row.html' %} {% endfor %}
         </tbody>
     </table>
     
     {% if not historical_broadcasts %}
     <div class="info">
-        <strong>No recent completed broadcasts.</strong>
+        <strong
+>No recent completed broadcasts from the last {{ historical_days }}
+        days.</strong
+>
     </div>
     {% endif %}
     

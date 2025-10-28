@@ -39,6 +39,7 @@ class WebServerConfig(TypedDict):
     host: str
     port: int
     page_title: str
+    historical_days: int  # Number of days of historical broadcasts to display
 
 
 class Config(TypedDict):

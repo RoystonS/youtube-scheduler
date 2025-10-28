@@ -82,6 +82,10 @@
     "port": 5000,
     
     // Page title shown in browser
-    "page_title": "All Saints Church - Upcoming Services"
+    "page_title": "All Saints Church - Upcoming Services",
+
+    // Number of days of past broadcasts to show on the web interface
+    // e.g., 2 = show broadcasts from the last 2 days
+    "historical_days": 14
   }
 }
