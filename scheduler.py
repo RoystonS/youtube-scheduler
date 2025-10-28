@@ -233,7 +233,7 @@ def maintain_broadcasts(dry_run: bool = False) -> None:
 
     # Delete old broadcasts (only those with auto_delete tag)
     print("\nCleaning up old broadcasts...")
-    delete_threshold: int = scheduling["delete_after_days"]
+    delete_threshold: int = scheduling["delete_after_hours"]
     deleted_count: int = 0
     skipped_no_tag: int = 0
 

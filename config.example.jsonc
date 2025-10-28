@@ -65,8 +65,8 @@
     // e.g., 4 = always have broadcasts for the next 4 weeks
     "buffer_weeks_ahead": 4,
     
-    // Delete old broadcasts after this many days (only deletes auto_created broadcasts)
-    "delete_after_days": 7,
+    // Delete old broadcasts after this many hours (only deletes auto_created broadcasts)
+    "delete_after_hours": 12,
     
     // Number of spare (backup) broadcasts to create for each service
     // Spares are created 1-2 minutes after the main broadcast

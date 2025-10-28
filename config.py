@@ -27,7 +27,7 @@ class SchedulingConfig(TypedDict):
     time: str  # HH:MM:SS format
     timezone: str
     buffer_weeks_ahead: int
-    delete_after_days: int
+    delete_after_hours: int
     num_spare_broadcasts: (
         int  # Number of backup broadcasts to create (1-2 minutes after main)
     )

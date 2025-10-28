@@ -422,13 +422,13 @@ def parse_broadcast_time(broadcast: LiveBroadcast) -> datetime:
     return date_parser.isoparse(time_str)
 
 
-def is_broadcast_old(broadcast: LiveBroadcast, days_threshold: int) -> bool:
+def is_broadcast_old(broadcast: LiveBroadcast, hours_threshold: int) -> bool:
     """
     Check if a broadcast is older than the threshold.
     
     Args:
         broadcast: Broadcast object from YouTube API
-        days_threshold: Number of days to consider "old"
+        hours_threshold: Number of hours to consider "old"
         
     Returns:
         True if broadcast is old
@@ -437,8 +437,9 @@ def is_broadcast_old(broadcast: LiveBroadcast, days_threshold: int) -> bool:
     now = get_current_time_utc()
 
     age = now - scheduled_time
+    age_hours = age.total_seconds() / 3600
     
-    return age.days > days_threshold
+    return age_hours > hours_threshold
 
 
 def get_broadcast_lifecycle_status(broadcast: LiveBroadcast) -> str:
