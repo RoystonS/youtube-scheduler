@@ -3,9 +3,9 @@ Description=YouTube Scheduler Timer - Run twice daily
 Documentation=https://github.com/RoystonS/youtube-scheduler
 
 [Timer]
-# Run at 3:00 AM and 1:30 PM every day (local time)
-OnCalendar=*-*-* 03:00:00
-OnCalendar=*-*-* 13:30:00
+# Every 6 hours starting at 2am, local time
+# systemd-analyze calendar "02/6:00:00"
+OnCalendar=02/6:00:00
 
 # If the system was off when a run was scheduled, run it soon after boot
 Persistent=true
