@@ -1,86 +1,86 @@
 {
   // Authentication method: "oauth" for personal account, "service_account" for automated service
   "auth_method": "service_account",
-  
+
   // Service account credentials file (used when auth_method = "service_account")
   "service_account_file": "credentials.json",
-  
+
   // OAuth credentials and token files (used when auth_method = "oauth")
   "oauth_credentials_file": "oauth_credentials.json",
   "oauth_token_file": "token.pickle",
-  
+
   // YouTube channel ID to manage broadcasts for
   "channel_id": "YOUR_CHANNEL_ID",
-  
+
   // Reusable stream key - all broadcasts bind to this single stream
   // This is the technical ingestion point for live video
   "stream_key": "YOUR_REUSABLE_STREAM_KEY",
-  
+
   "broadcasts": {
     // Title template - {date} will be replaced with the service date
     "title_template": "Sunday Service - {date}",
-    
+
     // Description shown on the YouTube video page
     "description": "All Saints Church Sunday Service",
-    
+
     // Category ID: 22 = "People & Blogs"
     // Other common categories: 10 = Music, 17 = Sports, 24 = Entertainment
     "category_id": "22",
-    
+
     // Privacy: "public", "unlisted", or "private"
     "privacy_status": "unlisted",
-    
+
     // Auto-start broadcast when streaming begins
     "enable_auto_start": false,
-    
+
     // Auto-stop broadcast when streaming ends
     "enable_auto_stop": false,
-    
+
     // Enable DVR (viewers can rewind/pause live stream)
     "enable_dvr": true,
-    
+
     // Allow embedding video on other websites
     "enable_embed": true,
-    
+
     // Language code for the stream (ISO 639-1 format)
     // Examples: "en-GB" (British English), "en-US" (American English), "es" (Spanish)
     "language": "en-GB",
-    
+
     // Hide view count statistics from public (likes/dislikes cannot be disabled via API)
     "hide_view_count": false
   },
-  
+
   "scheduling": {
     // Day of week: 0 = Monday, 6 = Sunday
     "day_of_week": 0,
-    
+
     // Time of day in HH:MM:SS format (interpreted in the timezone below)
     "time": "10:00:00",
-    
+
     // Timezone for interpreting the time above
     // Examples: "Europe/London", "America/New_York", "America/Los_Angeles"
     "timezone": "Europe/London",
-    
+
     // How many weeks ahead to maintain scheduled broadcasts
     // e.g., 4 = always have broadcasts for the next 4 weeks
     "buffer_weeks_ahead": 4,
-    
+
     // Delete old broadcasts after this many hours (only deletes auto_created broadcasts)
     "delete_after_hours": 12,
-    
+
     // Number of spare (backup) broadcasts to create for each service
     // Spares are created 1-2 minutes after the main broadcast
     // Useful if operator accidentally starts streaming to the wrong broadcast
     "num_spare_broadcasts": 0
   },
-  
+
   "web_server": {
     // Host interface: "0.0.0.0" = all interfaces, "127.0.0.1" = localhost only
     "host": "0.0.0.0",
-    
+
     // Port to run the web interface on
     "port": 5000,
-    
+
     // Page title shown in browser
     "page_title": "All Saints Church - Upcoming Services",
 

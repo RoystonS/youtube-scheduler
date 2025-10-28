@@ -1,73 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ page_title }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
     <h1>{{ page_title }}</h1>
-    
+
     <h2>Upcoming broadcasts</h2>
-    <div class="info" style="margin-bottom: 15px;">
-        Upcoming livestreams will be sent to these YouTube videos, in order.
-        (A currently-live video will be clearly highlighted as such.)
-    </div>
-    
-    <table>
-        <thead>
-            <tr>
-                <th>Date & Time</th>
-                <th>Service</th>
-                <th>YouTube Link</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for broadcast in streamable_broadcasts %}
-                {% include '_broadcast_row.html' %}
-            {% endfor %}
-        </tbody>
-    </table>
-    
-    {% if not streamable_broadcasts %}
-    <div class="info">
-        <strong>No upcoming broadcasts.</strong> Please run the scheduler to create broadcasts.
-    </div>
-    {% endif %}
-    
-    <h2 style="margin-top: 40px">
-      Completed broadcasts from the last {{ historical_days }} days
-</h2>    
-    <table>
-        <thead>
-            <tr>
-                <th>Date & Time</th>
-                <th>Service</th>
-                <th>YouTube Link</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for broadcast in historical_broadcasts %} {% include
-'_broadcast_row.html' %} {% endfor %}
-        </tbody>
-    </table>
-    
-    {% if not historical_broadcasts %}
-    <div class="info">
-        <strong
->No recent completed broadcasts from the last {{ historical_days }}
-        days.</strong
->
-    </div>
-    {% endif %}
-    
-    <div class="footer">
-        <p>Refresh this page to see the latest broadcasts</p>
+    <div class="info" style="margin-bottom: 15px">
+      Upcoming livestreams will be sent to these YouTube videos, in order. (A
+      currently-live video will be clearly highlighted as such.)
     </div>
 
-    <div class="refresh-note">
-        Last updated: {{ current_time }}
+    <table>
+      <thead>
+        <tr>
+          <th>Date & Time</th>
+          <th>Service</th>
+          <th>YouTube Link</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for broadcast in streamable_broadcasts %} {% include
+        '_broadcast_row.html' %} {% endfor %}
+      </tbody>
+    </table>
+
+    {% if not streamable_broadcasts %}
+    <div class="info">
+      <strong>No upcoming broadcasts.</strong> Please run the scheduler to
+      create broadcasts.
     </div>
-</body>
+    {% endif %}
+
+    <h2 style="margin-top: 40px">
+      Completed broadcasts from the last {{ historical_days }} days
+    </h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Date & Time</th>
+          <th>Service</th>
+          <th>YouTube Link</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for broadcast in historical_broadcasts %} {% include
+        '_broadcast_row.html' %} {% endfor %}
+      </tbody>
+    </table>
+
+    {% if not historical_broadcasts %}
+    <div class="info">
+      <strong
+        >No recent completed broadcasts from the last {{ historical_days }}
+        days.</strong
+      >
+    </div>
+    {% endif %}
+
+    <div class="footer">
+      <p>Refresh this page to see the latest broadcasts</p>
+    </div>
+
+    <div class="refresh-note">Last updated: {{ current_time }}</div>
+  </body>
 </html>
