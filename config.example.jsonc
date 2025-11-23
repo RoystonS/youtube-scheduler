@@ -86,6 +86,12 @@
 
     // Number of days of past broadcasts to show on the web interface
     // e.g., 2 = show broadcasts from the last 2 days
-    "historical_days": 14
+    "historical_days": 14,
+
+    // Contact info displayed when the offline banner indicates server issues
+    "support_contact": {
+      "name": "Your Name",
+      "link": "https://wa.me/15555555555"
+    }
   }
 }

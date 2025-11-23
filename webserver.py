@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import TypedDict
 
 import pytz
-from flask import Flask, render_template
+from flask import Flask, Response, current_app, render_template
 
 from auth import get_authenticated_service, load_config
 from current_time import get_current_time_utc
@@ -123,6 +123,9 @@ def index() -> str | tuple[str, int]:
         # Get historical days setting from config
         web_server_config = config.get('web_server', {})
         historical_days = web_server_config.get('historical_days', 2)
+        support_contact = web_server_config.get('support_contact') or {}
+        support_contact_name = support_contact.get('name') if isinstance(support_contact, dict) else None
+        support_contact_link = support_contact.get('link') if isinstance(support_contact, dict) else None
         
         # Convert streamable broadcasts to display format
         streamable_list: list[BroadcastInfo] = []
@@ -154,7 +157,7 @@ def index() -> str | tuple[str, int]:
         # Display current time in the configured timezone
         current_time_local = now.astimezone(display_tz)
         current_time = current_time_local.strftime('%Y-%m-%d %H:%M:%S %Z')
-        page_title = config['web_server']['page_title']
+        page_title = web_server_config.get('page_title', 'Broadcast Schedule')
         
         return render_template(
             template_name_or_list='index.html',
@@ -162,7 +165,9 @@ def index() -> str | tuple[str, int]:
             historical_broadcasts=historical_list,
             historical_days=historical_days,
             current_time=current_time,
-            page_title=page_title
+            page_title=page_title,
+            support_contact_name=support_contact_name,
+            support_contact_link=support_contact_link
         )
         
     except Exception as e:
@@ -187,6 +192,14 @@ def index() -> str | tuple[str, int]:
         </html>
         """
         return error_html, 500
+
+
+@app.route('/service-worker.js')
+def service_worker() -> Response:
+    """Serve the service worker from the app root for full-scope control."""
+    response: Response = current_app.send_static_file('service-worker.js')
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
 
 
 def run_server() -> None:

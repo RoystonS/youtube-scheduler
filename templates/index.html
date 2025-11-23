@@ -18,6 +18,27 @@
   <body>
     <h1>{{ page_title }}</h1>
 
+    <div class="offline-banner" role="status" aria-live="polite">
+      <div class="offline-banner__icon" aria-hidden="true">⚠️</div>
+      <div class="offline-banner__text">
+        <p class="offline-heading">
+          Connection issue. Showing cached schedule data.
+        </p>
+        <p
+          class="offline-contact"
+        >
+          Please contact 
+          <a href="{{ support_contact_link }}">{{ support_contact_name }}</a>
+          about this issue.
+        </p>
+        <p class="offline-description">
+          Cached snapshot last updated:
+          <span class="offline-timestamp">{{ current_time }}</span>. Latest updates may be delayed.
+        </p>
+        
+      </div>
+    </div>
+
     <h2>Upcoming broadcasts</h2>
     <div class="info" style="margin-bottom: 15px">
       Upcoming livestreams will be sent to these YouTube videos, in order. (A
@@ -76,5 +97,7 @@
     </div>
 
     <div class="refresh-note">Last updated: {{ current_time }}</div>
+
+    <script src="{{ url_for('static', filename='offline.js') }}" defer></script>
   </body>
 </html>

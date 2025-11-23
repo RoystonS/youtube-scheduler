@@ -32,6 +32,12 @@ class SchedulingConfig(TypedDict):
         int  # Number of backup broadcasts to create (1-2 minutes after main)
     )
 
+class SupportContactConfig(TypedDict, total=False):
+    """Contact details for surfacing server issues."""
+
+    name: str
+    link: str
+
 
 class WebServerConfig(TypedDict):
     """Configuration for web server."""
@@ -40,6 +46,7 @@ class WebServerConfig(TypedDict):
     port: int
     page_title: str
     historical_days: int  # Number of days of historical broadcasts to display
+    support_contact: Optional[SupportContactConfig]
 
 
 class Config(TypedDict):
