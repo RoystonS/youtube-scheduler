@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import TypedDict
+from pathlib import Path
+from typing import TypedDict, cast
 
 import pytz
 from flask import Flask, Response, current_app, render_template
@@ -33,6 +34,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+_default_static_dir = Path(__file__).with_name('static')
+STATIC_DIR = Path(app.static_folder) if app.static_folder else _default_static_dir
+SERVICE_WORKER_PATH = STATIC_DIR / 'service-worker.js'
+SERVICE_WORKER_CONTENT = SERVICE_WORKER_PATH.read_text(encoding='utf-8')
 
 # Jinja2 filter functions with proper type annotations
 def _youtube_watch_url_filter(broadcast_id: str) -> str:
@@ -124,8 +129,8 @@ def index() -> str | tuple[str, int]:
         web_server_config = config.get('web_server', {})
         historical_days = web_server_config.get('historical_days', 2)
         support_contact = web_server_config.get('support_contact') or {}
-        support_contact_name = support_contact.get('name') if isinstance(support_contact, dict) else None
-        support_contact_link = support_contact.get('link') if isinstance(support_contact, dict) else None
+        support_contact_name = support_contact.get('name') or ""
+        support_contact_link = support_contact.get('link') or ""
         
         # Convert streamable broadcasts to display format
         streamable_list: list[BroadcastInfo] = []
@@ -197,8 +202,15 @@ def index() -> str | tuple[str, int]:
 @app.route('/service-worker.js')
 def service_worker() -> Response:
     """Serve the service worker from the app root for full-scope control."""
-    response: Response = current_app.send_static_file('service-worker.js')
-    response.headers['Cache-Control'] = 'no-cache'
+    response: Response = cast(
+        Response,
+        current_app.response_class(
+        SERVICE_WORKER_CONTENT,
+        mimetype='text/javascript'
+        )
+    )
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Service-Worker-Allowed'] = '/'
     return response
 
 
