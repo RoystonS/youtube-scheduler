@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from math import inf
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -66,7 +67,7 @@ class BroadcastInfo(TypedDict):
 def broadcast_to_display_info(
     broadcast: LiveBroadcast,
     display_tz: pytz.BaseTzInfo,
-    now: datetime
+    now_utc: datetime
 ) -> BroadcastInfo:
     """
     Convert a LiveBroadcast API object to a BroadcastInfo for display.
@@ -74,24 +75,24 @@ def broadcast_to_display_info(
     Args:
         broadcast: LiveBroadcast object from YouTube API
         display_tz: Timezone to display the time in
-        now: Current time for comparison
+        now_utc: Current time in UTC for comparison
         
     Returns:
         BroadcastInfo dictionary ready for template rendering
     """
-    scheduled_time = parse_broadcast_time(broadcast)
+    scheduled_time_utc = parse_broadcast_time(broadcast)
     snippet = broadcast.get('snippet', {})
     broadcast_id = broadcast.get('id', '')
     is_live = is_broadcast_live(broadcast)
 
     # Convert to display timezone for user-friendly display
-    scheduled_time_local = scheduled_time.astimezone(display_tz)
+    scheduled_time_local = scheduled_time_utc.astimezone(display_tz)
 
     return {
         'display_datestring': scheduled_time_local.strftime('%a, %b %d, %Y at %I:%M %p %Z'),
         'title': snippet.get('title', 'Untitled'),
         'broadcast_id': broadcast_id,
-        'is_past': scheduled_time < now,
+        'is_past': scheduled_time_utc < now_utc,
         'is_live': is_live,
     }
 
@@ -114,15 +115,15 @@ def index() -> str | tuple[str, int]:
         
         # Get all broadcasts bound to our stream
         logger.info(f"Fetching broadcasts from YouTube for stream {stream_id}...")
-        all_broadcasts = list_broadcasts(youtube, max_results=50, stream_id=stream_id)
+        all_broadcasts = list_broadcasts(youtube, max_results=inf, stream_id=stream_id)
         logger.info(f"Found {len(all_broadcasts)} broadcasts bound to this stream")
         
         # Get current time and display timezone
-        now = get_current_time_utc()
+        now_utc = get_current_time_utc()
         display_tz = pytz.timezone(config['scheduling']['timezone'])
         
         # Sort broadcasts using YouTube's priority algorithm
-        streamable, historical = sort_broadcasts_by_youtube_priority(all_broadcasts, now)
+        streamable, historical = sort_broadcasts_by_youtube_priority(all_broadcasts, now_utc)
         logger.info(f"Sorted: {len(streamable)} streamable, {len(historical)} historical")
         
         # Get historical days setting from config
@@ -136,22 +137,22 @@ def index() -> str | tuple[str, int]:
         streamable_list: list[BroadcastInfo] = []
         for broadcast in streamable:
             try:
-                info = broadcast_to_display_info(broadcast, display_tz, now)
+                info = broadcast_to_display_info(broadcast, display_tz, now_utc)
                 streamable_list.append(info)
             except Exception as e:
                 logger.error(f"Error processing streamable broadcast: {e}")
                 continue
         
         # Convert historical broadcasts to display format (limit by configured days)
-        recent_boundary = now - timedelta(days=historical_days)
+        recent_boundary_utc = now_utc - timedelta(days=historical_days)
         historical_list: list[BroadcastInfo] = []
         for broadcast in historical:
             try:
-                scheduled_time = parse_broadcast_time(broadcast)
+                scheduled_time_utc = parse_broadcast_time(broadcast)
                 
                 # Only include recent historical broadcasts
-                if scheduled_time >= recent_boundary:
-                    info = broadcast_to_display_info(broadcast, display_tz, now)
+                if scheduled_time_utc >= recent_boundary_utc:
+                    info = broadcast_to_display_info(broadcast, display_tz, now_utc)
                     historical_list.append(info)
             except Exception as e:
                 logger.error(f"Error processing historical broadcast: {e}")
@@ -160,7 +161,7 @@ def index() -> str | tuple[str, int]:
         logger.info(f"Displaying: {len(streamable_list)} streamable, {len(historical_list)} historical")
         
         # Display current time in the configured timezone
-        current_time_local = now.astimezone(display_tz)
+        current_time_local = now_utc.astimezone(display_tz)
         current_time = current_time_local.strftime('%Y-%m-%d %H:%M:%S %Z')
         page_title = web_server_config.get('page_title', 'Broadcast Schedule')
         

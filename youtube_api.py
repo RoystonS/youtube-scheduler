@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import List
+from typing import Callable, List, TypeVar
 
 import pytz
 from dateutil import parser as date_parser
@@ -17,6 +17,46 @@ from googleapiclient.errors import HttpError
 from config import Config
 from current_time import get_current_time_utc
 from youtube_types import LiveBroadcast, YouTubeResource
+
+T = TypeVar("T")
+
+
+def execute_with_retries(
+    operation: Callable[[], T],
+    operation_name: str,
+    retry_statuses: set[int] | None = None,
+    max_attempts: int = 4,
+    initial_delay_seconds: float = 1.5,
+    backoff_multiplier: float = 2.0,
+) -> T:
+    """
+    Execute an API operation with retry + exponential backoff.
+
+    Defaults to retrying only HTTP 403, but can be reused elsewhere by passing
+    different `retry_statuses`.
+    """
+    statuses = retry_statuses or {403}
+    delay_seconds = initial_delay_seconds
+    last_error: Exception | None = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return operation()
+        except HttpError as e:
+            last_error = e
+            status = getattr(e.resp, "status", None)
+            should_retry = status in statuses and attempt < max_attempts
+            if not should_retry:
+                raise
+
+            print(
+                f"    Warning: {operation_name} failed with HTTP {status}. "
+                f"Retrying in {delay_seconds:.1f}s... ({attempt}/{max_attempts})"
+            )
+            time.sleep(delay_seconds)
+            delay_seconds *= backoff_multiplier
+
+    raise RuntimeError(f"{operation_name} failed after retries: {last_error}")
 
 
 def get_video_tags_batch(
@@ -118,7 +158,7 @@ def list_broadcasts(
 def create_broadcast(
     youtube: YouTubeResource,
     title: str,
-    scheduled_start_time: datetime,
+    scheduled_start_time_utc: datetime,
     description: str,
     config: Config
 ) -> LiveBroadcast:
@@ -128,7 +168,7 @@ def create_broadcast(
     Args:
         youtube: Authenticated YouTube API service
         title: Broadcast title
-        scheduled_start_time: When the broadcast is scheduled
+        scheduled_start_time_utc: When the broadcast is scheduled (UTC)
         description: Broadcast description
         config: Configuration dictionary with broadcast settings
         
@@ -137,8 +177,14 @@ def create_broadcast(
     """
     broadcast_config = config['broadcasts']
     
+    if scheduled_start_time_utc.tzinfo is None:
+        raise ValueError("scheduled_start_time_utc must be timezone-aware")
+
+    # Enforce UTC as internal/API boundary format
+    scheduled_start_time_utc = scheduled_start_time_utc.astimezone(pytz.UTC)
+
     # Format the scheduled start time as ISO 8601
-    start_time_iso = scheduled_start_time.isoformat()
+    start_time_iso = scheduled_start_time_utc.isoformat()
     
     # Create the broadcast
     broadcast_response = youtube.liveBroadcasts().insert(
@@ -227,10 +273,13 @@ def update_video_settings(
     
     try:
         # First, get the current video to ensure it exists
-        video_response = youtube.videos().list(
-            part='snippet,status',
-            id=broadcast_id
-        ).execute()
+        video_response = execute_with_retries(
+            lambda: youtube.videos().list(
+                part='snippet,status',
+                id=broadcast_id
+            ).execute(),
+            operation_name=f"videos.list({broadcast_id})",
+        )
         
         if not video_response.get('items'):
             print(f"    Warning: Video {broadcast_id} not found yet, settings will be set when it becomes available")
@@ -238,39 +287,45 @@ def update_video_settings(
         
         # Update the video with correct category and settings
         language = broadcast_config.get('language', 'en-GB')
-        youtube.videos().update(
-            part='snippet,status',
-            body={
-                'id': broadcast_id,
-                'snippet': {
-                    'categoryId': broadcast_config['category_id'],
-                    'title': video_response['items'][0]['snippet']['title'],  # type: ignore[index, typeddict-item] - Required field
-                    'tags': ['auto_created', 'auto_delete'],  # type: ignore[typeddict-item] - Ensure tags are set on video
-                    'defaultLanguage': language,  # type: ignore[typeddict-item] - Video/title language
-                    'defaultAudioLanguage': language,  # type: ignore[typeddict-item] - Stream audio language
-                },
-                'status': {
-                    'privacyStatus': broadcast_config['privacy_status'],
-                    'selfDeclaredMadeForKids': False,  # type: ignore[typeddict-item]
-                    'madeForKids': False,  # type: ignore[typeddict-item]
-                    'publicStatsViewable': not broadcast_config.get('hide_view_count', False),  # type: ignore[typeddict-item]
-                    'embeddable': broadcast_config.get('enable_embed', True),  # type: ignore[typeddict-item] - Allow embedding
-                },
-            }
-        ).execute()
+        execute_with_retries(
+            lambda: youtube.videos().update(
+                part='snippet,status',
+                body={
+                    'id': broadcast_id,
+                    'snippet': {
+                        'categoryId': broadcast_config['category_id'],
+                        'title': video_response['items'][0]['snippet']['title'],  # type: ignore[index, typeddict-item] - Required field
+                        'tags': ['auto_created', 'auto_delete'],  # type: ignore[typeddict-item] - Ensure tags are set on video
+                        'defaultLanguage': language,  # type: ignore[typeddict-item] - Video/title language
+                        'defaultAudioLanguage': language,  # type: ignore[typeddict-item] - Stream audio language
+                    },
+                    'status': {
+                        'privacyStatus': broadcast_config['privacy_status'],
+                        'selfDeclaredMadeForKids': False,  # type: ignore[typeddict-item]
+                        'madeForKids': False,  # type: ignore[typeddict-item]
+                        'publicStatsViewable': not broadcast_config.get('hide_view_count', False),  # type: ignore[typeddict-item]
+                        'embeddable': broadcast_config.get('enable_embed', True),  # type: ignore[typeddict-item] - Allow embedding
+                    },
+                }
+            ).execute(),
+            operation_name=f"videos.update(snippet/status, {broadcast_id})",
+        )
         
         # Try to update live streaming settings (chat)
         # Note: This may not work for all broadcast states
         try:
-            youtube.videos().update(
-                part='liveStreamingDetails',
-                body={
-                    'id': broadcast_id,
-                    'liveStreamingDetails': {  # type: ignore[typeddict-item]
-                        'enableChat': False,  # type: ignore[typeddict-item]
+            execute_with_retries(
+                lambda: youtube.videos().update(
+                    part='liveStreamingDetails',
+                    body={
+                        'id': broadcast_id,
+                        'liveStreamingDetails': {  # type: ignore[typeddict-item]
+                            'enableChat': False,  # type: ignore[typeddict-item]
+                        }
                     }
-                }
-            ).execute()
+                ).execute(),
+                operation_name=f"videos.update(liveStreamingDetails, {broadcast_id})",
+            )
         except Exception as e:
             # Chat settings may not be available for all broadcasts
             print(f"    Note: Could not disable chat via API (this is normal): {e}")
@@ -409,7 +464,7 @@ def parse_broadcast_time(broadcast: LiveBroadcast) -> datetime:
         broadcast: Broadcast object from YouTube API
         
     Returns:
-        Scheduled start time
+        Scheduled start time in UTC
     """
     snippet = broadcast.get('snippet')
     if not snippet:
@@ -419,7 +474,11 @@ def parse_broadcast_time(broadcast: LiveBroadcast) -> datetime:
     if not time_str:
         raise ValueError("Broadcast has no scheduled start time")
     
-    return date_parser.isoparse(time_str)
+    scheduled_time = date_parser.isoparse(time_str)
+    if scheduled_time.tzinfo is None:
+        # YouTube should provide timezone-aware values, but default to UTC defensively
+        return scheduled_time.replace(tzinfo=pytz.UTC)
+    return scheduled_time.astimezone(pytz.UTC)
 
 
 def is_broadcast_old(broadcast: LiveBroadcast, hours_threshold: int) -> bool:

@@ -15,7 +15,7 @@ import pytz
 
 from auth import get_authenticated_service, load_config
 from config import BroadcastConfig, Config, SchedulingConfig
-from current_time import get_current_time_local
+from current_time import get_current_time_utc
 from youtube_api import (
     bind_broadcast_to_stream,
     create_broadcast,
@@ -42,7 +42,8 @@ def get_next_service_dates(config: Config, num_weeks: int = 4) -> List[datetime]
         num_weeks: Number of weeks to generate
 
     Returns:
-        List of datetime objects for upcoming services
+        List of UTC datetime objects for upcoming services.
+        Note: Schedule configuration is interpreted as local wall-clock time.
     """
     scheduling: SchedulingConfig = config["scheduling"]
     day_of_week: int = scheduling["day_of_week"]  # 0 = Monday, 6 = Sunday
@@ -53,41 +54,48 @@ def get_next_service_dates(config: Config, num_weeks: int = 4) -> List[datetime]
     time_parts = [int(p) for p in time_str.split(":")]
     hour, minute, second = time_parts[0], time_parts[1], time_parts[2]
 
-    # Get timezone
-    tz = pytz.timezone(timezone_str)
+    # Get timezone (schedule is configured in local wall-clock time)
+    tz_local = pytz.timezone(timezone_str)
 
-    # Find next occurrence of the day
-    now = get_current_time_local(tz)
+    # Find next occurrence of the day from local wall-clock perspective
+    now_utc = get_current_time_utc()
+    now_local = now_utc.astimezone(tz_local)
 
-    days_ahead = day_of_week - now.weekday()
+    days_ahead = day_of_week - now_local.weekday()
     if days_ahead <= 0:  # Target day already happened this week
         days_ahead += 7
 
-    service_dates: list[datetime] = []
+    service_dates_utc: list[datetime] = []
     for week in range(num_weeks):
-        next_date = now + timedelta(days=days_ahead + (week * 7))
-        service_datetime = tz.localize(
+        next_date_local = now_local + timedelta(days=days_ahead + (week * 7))
+        service_datetime_local = tz_local.localize(
             datetime(
-                next_date.year, next_date.month, next_date.day, hour, minute, second
+                next_date_local.year,
+                next_date_local.month,
+                next_date_local.day,
+                hour,
+                minute,
+                second,
             )
         )
-        service_dates.append(service_datetime)
+        service_datetime_utc = service_datetime_local.astimezone(pytz.UTC)
+        service_dates_utc.append(service_datetime_utc)
 
-    return service_dates
+    return service_dates_utc
 
 
-def format_broadcast_title(template: str, service_date: datetime) -> str:
+def format_broadcast_title(template: str, service_date_local: datetime) -> str:
     """
     Format the broadcast title using the template.
 
     Args:
         template: Title template with {date} placeholder
-        service_date: Service date
+        service_date_local: Service date in local timezone (for display/title)
 
     Returns:
         Formatted title
     """
-    date_str = service_date.strftime("%Y-%m-%d")
+    date_str = service_date_local.strftime("%Y-%m-%d")
     return template.format(date=date_str)
 
 
@@ -131,19 +139,28 @@ def maintain_broadcasts(dry_run: bool = False) -> None:
     scheduling: SchedulingConfig = config["scheduling"]
     broadcasts_config: BroadcastConfig = config["broadcasts"]
     buffer_weeks: int = scheduling["buffer_weeks_ahead"]
-    required_dates: List[datetime] = get_next_service_dates(config, buffer_weeks)
+    timezone_str: str = scheduling["timezone"]
+    timezone_local = pytz.timezone(timezone_str)
+    required_dates_utc: List[datetime] = get_next_service_dates(config, buffer_weeks)
     print(f"\nRequired upcoming broadcasts ({buffer_weeks} weeks):")
-    for date in required_dates:
-        print(f"  - {date.strftime('%Y-%m-%d %H:%M %Z')}")
+    for required_date_utc in required_dates_utc:
+        required_date_local = required_date_utc.astimezone(timezone_local)
+        print(f"  - {required_date_local.strftime('%Y-%m-%d %H:%M %Z')}")
 
     # Check which broadcasts already exist
     existing_dates: set[str] = set()
     skipped_count = 0
     for broadcast in existing_broadcasts:
         try:
-            scheduled_time = parse_broadcast_time(broadcast)
-            # Round to the same time format for comparison
-            date_key = scheduled_time.strftime("%Y-%m-%d %H:%M")
+            scheduled_time_utc = parse_broadcast_time(broadcast)
+            scheduled_time_local = scheduled_time_utc.astimezone(timezone_local)
+
+            # Round to the same UTC time format for comparison
+            date_key = scheduled_time_utc.strftime("%Y-%m-%d %H:%M")
+            print(
+                f"Existing broadcast: {scheduled_time_local} - {get_broadcast_status_summary(broadcast)}"
+            )
+            
             existing_dates.add(date_key)
         except Exception:
             broadcast_id = broadcast.get("id", "")
@@ -165,23 +182,26 @@ def maintain_broadcasts(dry_run: bool = False) -> None:
     created_count: int = 0
     num_spare_broadcasts: int = scheduling["num_spare_broadcasts"]
 
-    for service_date in required_dates:
-        date_key: str = service_date.strftime("%Y-%m-%d %H:%M")
+    for service_date_utc in required_dates_utc:
+        date_key: str = service_date_utc.strftime("%Y-%m-%d %H:%M")
+        service_date_local = service_date_utc.astimezone(timezone_local)
         if date_key not in existing_dates:
             # Create main broadcast
             title: str = format_broadcast_title(
-                broadcasts_config["title_template"], service_date
+                broadcasts_config["title_template"], service_date_local
             )
 
             if dry_run:
-                print(f"  [DRY RUN] Would create: {title} at {service_date}")
+                print(
+                    f"  [DRY RUN] Would create: {title} at {service_date_local.strftime('%Y-%m-%d %H:%M %Z')}"
+                )
             else:
                 print(f"  Creating: {title}")
                 try:
                     broadcast = create_broadcast(
                         youtube,
                         title,
-                        service_date,
+                        service_date_utc,
                         broadcasts_config["description"],
                         config,
                     )
@@ -200,18 +220,21 @@ def maintain_broadcasts(dry_run: bool = False) -> None:
 
             # Create spare broadcasts (1 minute apart each)
             for spare_num in range(1, num_spare_broadcasts + 1):
-                spare_date = service_date + timedelta(minutes=spare_num)
+                spare_date_utc = service_date_utc + timedelta(minutes=spare_num)
+                spare_date_local = spare_date_utc.astimezone(timezone_local)
                 spare_title = f"{title} - SPARE {spare_num}"
 
                 if dry_run:
-                    print(f"  [DRY RUN] Would create: {spare_title} at {spare_date}")
+                    print(
+                        f"  [DRY RUN] Would create: {spare_title} at {spare_date_local.strftime('%Y-%m-%d %H:%M %Z')}"
+                    )
                 else:
                     print(f"  Creating: {spare_title}")
                     try:
                         spare_broadcast = create_broadcast(
                             youtube,
                             spare_title,
-                            spare_date,
+                            spare_date_utc,
                             broadcasts_config["description"],
                             config,
                         )
@@ -228,7 +251,9 @@ def maintain_broadcasts(dry_run: bool = False) -> None:
                     except Exception as e:
                         print(f"    ERROR: Failed to create spare broadcast: {e}")
         else:
-            print(f"  Already exists: {service_date.strftime('%Y-%m-%d %H:%M')}")
+            print(
+                f"  Already exists: {service_date_local.strftime('%Y-%m-%d %H:%M %Z')}"
+            )
 
     print(f"\nCreated {created_count} new broadcast(s)")
 
@@ -241,8 +266,6 @@ def maintain_broadcasts(dry_run: bool = False) -> None:
     # First, identify broadcasts that are old enough to delete
     old_broadcasts: list[LiveBroadcast] = []
     for broadcast in existing_broadcasts:
-        scheduled_time = parse_broadcast_time(broadcast)
-        
         if is_broadcast_old(broadcast, delete_threshold):
             old_broadcasts.append(broadcast)
     

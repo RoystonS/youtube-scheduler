@@ -23,9 +23,9 @@ class BroadcastConfig(TypedDict):
 class SchedulingConfig(TypedDict):
     """Configuration for broadcast scheduling."""
 
-    day_of_week: int  # 0=Monday, 6=Sunday
-    time: str  # HH:MM:SS format
-    timezone: str
+    day_of_week: int  # 0=Monday, 6=Sunday (interpreted in local timezone)
+    time: str  # HH:MM:SS local wall-clock format
+    timezone: str  # IANA timezone for local schedule interpretation/display
     buffer_weeks_ahead: int
     delete_after_hours: int
     num_spare_broadcasts: (
